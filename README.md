@@ -19,21 +19,46 @@ This project provides an OpenLDAP server with phpLDAPadmin for web-based adminis
 
 ### set up TFE related credentials
 
+Before running the setup, ensure you have your Terraform Cloud credentials set up in your environment. This is crucial for creating teams and managing memberships.
+
 ```bash
-# 1. Set your TFC credentials securely
 export TFE_TOKEN="your-api-token"
 export TFE_ORGANIZATION="your-org-name"
+```
 
-# 2. Start LDAP containers
+start the OpenLDAP server and phpLDAPadmin, with preconfigured LDAP groups and users.
+
+```bash
 docker compose up -d
+```
 
-# 3. Apply configuration (TFC integration enabled by default)
-terraform apply
+Apply configuration (TFC integration enabled by default)
 
-# 4. View created teams
+```bash
+# Ensure you have the latest Terraform version installed
+terraform init && terraform plan && terraform apply -auto-approve
+```
+
+View created teams
 
 ```bash
 terraform output terraform_cloud_teams
+```
+
+Go to Terraform Cloud and verify the teams are created under your organization.
+
+add an LDAP user to the OpenLDAP server and add it to the `administrators` and `developers` groups:
+
+```bash
+./ldap-user-cli.sh add-user alice.johnson Alice Johnson alice.johnson@example.org password123
+./ldap-user-cli.sh add-to-group alice.johnson developers
+./ldap-user-cli.sh add-to-group alice.johnson administrators
+```
+
+Run the Terraform plan and apply command again to sync the new user with Terraform Cloud:
+
+```bash
+terraform plan && terraform apply -auto-approve
 ```
 
 ## Components
@@ -50,15 +75,18 @@ terraform output terraform_cloud_teams
 - **jane.smith**: Member of developers and users
 - **bob.wilson**: Member of users only
 
+### additional Users
+
+- **alice.johnson**: New user added to administrators and developers
+
 ## Management Commands
 
 ### Container Operations
 
 ```bash
-./terraform-ldap.sh start          # Start LDAP containers
-./terraform-ldap.sh stop           # Stop containers
-./terraform-ldap.sh restart        # Restart containers
-./terraform-ldap.sh logs           # View container logs
+docker compose up -d          # Start OpenLDAP and phpLDAPadmin
+docker compose down           # Stop services
+docker compose down -v        # Stop and remove containers, networks, and volumes
 ```
 
 ## Prerequisites & Requirements
@@ -91,16 +119,6 @@ The API token needs the following permissions:
 - **Admin Password**: `admin`
 - **phpLDAPadmin**: `http://localhost:6443`
 
-## Customization
-
-Edit the `.env` file to customize the LDAP configuration:
-
-```env
-LDAP_ORGANISATION=Your Company Name
-LDAP_DOMAIN=yourdomain.com
-LDAP_ADMIN_PASSWORD=your_secure_password
-```
-
 ## Terraform Files & Structure
 
 - `main.tf` - Provider configuration
@@ -125,18 +143,6 @@ LDAP_ADMIN_PASSWORD=your_secure_password
 
 ## Troubleshooting
 
-### Stopping the Services
-
-```bash
-docker-compose down
-```
-
-To remove all data (destructive):
-
-```bash
-docker-compose down -v
-```
-
 ### Logs
 
 View OpenLDAP logs:
@@ -149,22 +155,4 @@ View phpLDAPadmin logs:
 
 ```bash
 docker compose logs phpldapadmin
-```
-
-### Management Script Usage
-
-```bash
-# Full setup and display results
-./terraform-ldap.sh setup
-
-# Show all outputs
-./terraform-ldap.sh outputs
-
-# Show specific group
-./terraform-ldap.sh show-group administrators
-./terraform-ldap.sh show-group developers
-./terraform-ldap.sh show-group users
-
-# Check LDAP server status
-./terraform-ldap.sh check
 ```

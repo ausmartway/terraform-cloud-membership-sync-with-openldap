@@ -120,16 +120,7 @@ variable "team_prefix" {
   }
 }
 
-variable "user_email_mapping" {
-  description = "Mapping of LDAP usernames to email addresses for TFC organization membership"
-  type        = map(string)
-  default = {
-    "admin"      = "admin@example.com"
-    "john.doe"   = "john.doe@example.com"
-    "jane.smith" = "jane.smith@example.com"
-    "bob.wilson" = "bob.wilson@example.com"
-  }
-}
+# Note: user_email_mapping variable removed - emails are now dynamically queried from LDAP
 
 variable "create_user_memberships" {
   description = "Whether to create organization memberships and team memberships for LDAP users"
