@@ -184,8 +184,14 @@ output "tfe_team_memberships" {
       member_ids   = team_membership.organization_membership_ids
       ldap_members = [
         for username in split(",", data.external.groups[group_name].result.members) :
-        username if contains(keys(var.user_email_mapping), username)
+        username if contains(keys(data.external.user_emails.result), username)
       ]
     }
   } : {}
+}
+
+# Output LDAP-queried user email mappings
+output "ldap_user_emails" {
+  description = "User email mappings queried from LDAP"
+  value       = data.external.user_emails.result
 }

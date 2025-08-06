@@ -61,3 +61,12 @@ data "external" "groups" {
     each.key
   ]
 }
+
+# Query user email mappings from LDAP
+data "external" "user_emails" {
+  program = [
+    "bash",
+    "${path.module}/simple_ldap_query.sh",
+    "user-emails"
+  ]
+}

@@ -24,7 +24,7 @@ resource "tfe_team" "ldap_teams" {
 
 # Create organization memberships for LDAP users
 resource "tfe_organization_membership" "ldap_users" {
-  for_each = var.create_tfe_teams && var.create_user_memberships ? var.user_email_mapping : {}
+  for_each = var.create_tfe_teams && var.create_user_memberships ? data.external.user_emails.result : {}
 
   organization = var.tfe_organization
   email        = each.value
@@ -48,7 +48,7 @@ resource "tfe_team_organization_members" "ldap_team_memberships" {
   organization_membership_ids = [
     for username in split(",", data.external.groups[each.key].result.members) : 
     tfe_organization_membership.ldap_users[username].id
-    if contains(keys(var.user_email_mapping), username)
+    if contains(keys(data.external.user_emails.result), username)
   ]
 
   depends_on = [
