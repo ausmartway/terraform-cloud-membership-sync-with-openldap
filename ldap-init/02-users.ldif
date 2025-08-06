@@ -1,0 +1,32 @@
+# Create organizational unit for users
+dn: ou=users,dc=example,dc=org
+objectClass: organizationalUnit
+ou: users
+
+# Create sample users
+dn: cn=john.doe,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+cn: john.doe
+sn: Doe
+givenName: John
+mail: john.doe@example.org
+userPassword: {SSHA}password123
+uid: john.doe
+
+dn: cn=jane.smith,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+cn: jane.smith
+sn: Smith
+givenName: Jane
+mail: jane.smith@example.org
+userPassword: {SSHA}password123
+uid: jane.smith
+
+dn: cn=bob.wilson,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+cn: bob.wilson
+sn: Wilson
+givenName: Bob
+mail: bob.wilson@example.org
+userPassword: {SSHA}password123
+uid: bob.wilson

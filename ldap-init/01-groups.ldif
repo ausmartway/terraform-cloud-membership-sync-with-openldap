@@ -1,0 +1,27 @@
+# Create organizational units
+dn: ou=groups,dc=example,dc=org
+objectClass: organizationalUnit
+ou: groups
+
+# Create three groups
+dn: cn=administrators,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: administrators
+description: System administrators group
+member: cn=admin,dc=example,dc=org
+member: cn=john.doe,ou=users,dc=example,dc=org
+
+dn: cn=developers,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: developers
+description: Software developers group
+member: cn=jane.smith,ou=users,dc=example,dc=org
+member: cn=bob.wilson,ou=users,dc=example,dc=org
+
+dn: cn=users,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: users
+description: Regular users group
+member: cn=john.doe,ou=users,dc=example,dc=org
+member: cn=jane.smith,ou=users,dc=example,dc=org
+member: cn=bob.wilson,ou=users,dc=example,dc=org

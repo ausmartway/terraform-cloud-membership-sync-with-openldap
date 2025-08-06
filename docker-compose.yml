@@ -1,0 +1,68 @@
+services:
+  openldap:
+    image: osixia/openldap:latest
+    container_name: openldap-server
+    hostname: ldap.example.org
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+      - ldap_certs:/container/service/slapd/assets/certs
+      - ./ldap-init:/container/service/slapd/assets/config/bootstrap/ldif/custom
+    environment:
+      # LDAP Configuration
+      LDAP_ORGANISATION: "Example Inc."
+      LDAP_DOMAIN: "example.org"
+      LDAP_BASE_DN: "dc=example,dc=org"
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_CONFIG_PASSWORD: "config"
+      
+      # Enable TLS
+      LDAP_TLS: "true"
+      LDAP_TLS_CRT_FILENAME: "ldap.crt"
+      LDAP_TLS_KEY_FILENAME: "ldap.key"
+      LDAP_TLS_DH_PARAM_FILENAME: "dhparam.pem"
+      LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
+      LDAP_TLS_ENFORCE: "false"
+      LDAP_TLS_CIPHER_SUITE: "SECURE256:-VERS-SSL3.0"
+      LDAP_TLS_PROTOCOL_MIN: "3.1"
+      LDAP_TLS_VERIFY_CLIENT: "demand"
+      
+      # Replication settings
+      LDAP_REPLICATION: "false"
+      
+      # Remove default schemas
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+      
+      # Backup settings
+      LDAP_BACKUP_CONFIG_CRON_EXP: "0 2 * * *"
+      LDAP_BACKUP_DATA_CRON_EXP: "0 2 * * *"
+    command: --copy-service
+    restart: unless-stopped
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    container_name: phpldapadmin
+    hostname: phpldapadmin.example.org
+    ports:
+      - "6443:443"
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+    depends_on:
+      - openldap
+    restart: unless-stopped
+
+volumes:
+  ldap_data:
+    driver: local
+  ldap_config:
+    driver: local
+  ldap_certs:
+    driver: local
+
+networks:
+  default:
+    name: ldap-network
