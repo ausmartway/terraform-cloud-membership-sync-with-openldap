@@ -180,18 +180,156 @@ show_user() {
         -b "$user_dn" -s base | grep -E "^(dn:|cn:|givenName:|sn:|mail:|uid:)" | sed 's/^/  /'
 }
 
+# Function to remove user from a group
+remove_user_from_group() {
+    local username="$1"
+    local groupname="$2"
+    
+    if [[ -z "$username" || -z "$groupname" ]]; then
+        print_error "Username and group name are required"
+        return 1
+    fi
+    
+    local user_dn="cn=$username,$USERS_OU"
+    local group_dn="cn=$groupname,ou=groups,$BASE_DN"
+    
+    # Check if user exists
+    if ! user_exists "$username"; then
+        print_error "User '$username' does not exist"
+        return 1
+    fi
+    
+    # Check if user is actually in the group
+    if ! ldapsearch -x -H "ldap://$LDAP_HOST:$LDAP_PORT" -D "$ADMIN_DN" -w "$ADMIN_PASSWORD" \
+        -b "$group_dn" -s base "member=$user_dn" | grep -q "numEntries: 1"; then
+        print_warning "User '$username' is not a member of group '$groupname'"
+        return 0
+    fi
+    
+    # Create LDIF to remove user from group
+    local ldif_content="dn: $group_dn
+changetype: modify
+delete: member
+member: $user_dn"
+    
+    print_info "Removing user '$username' from group '$groupname'..."
+    
+    if echo "$ldif_content" | ldapmodify -x -H "ldap://$LDAP_HOST:$LDAP_PORT" -D "$ADMIN_DN" -w "$ADMIN_PASSWORD"; then
+        print_success "User '$username' removed from group '$groupname'"
+        return 0
+    else
+        print_error "Failed to remove user '$username' from group '$groupname'"
+        return 1
+    fi
+}
+
+# Function to get user's group memberships
+get_user_groups() {
+    local username="$1"
+    
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        return 1
+    fi
+    
+    local user_dn="cn=$username,$USERS_OU"
+    
+    print_info "Groups for user '$username':"
+    ldapsearch -x -H "ldap://$LDAP_HOST:$LDAP_PORT" -D "$ADMIN_DN" -w "$ADMIN_PASSWORD" \
+        -b "ou=groups,$BASE_DN" "member=$user_dn" cn | grep "^cn: " | sed 's/^cn: /  - /'
+}
+
+# Function to remove user from all groups
+remove_user_from_all_groups() {
+    local username="$1"
+    
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        return 1
+    fi
+    
+    local user_dn="cn=$username,$USERS_OU"
+    
+    print_info "Removing user '$username' from all groups..."
+    
+    # Get all groups the user is a member of
+    local groups=$(ldapsearch -x -H "ldap://$LDAP_HOST:$LDAP_PORT" -D "$ADMIN_DN" -w "$ADMIN_PASSWORD" \
+        -b "ou=groups,$BASE_DN" "member=$user_dn" cn | grep "^cn: " | sed 's/^cn: //')
+    
+    if [[ -z "$groups" ]]; then
+        print_info "User '$username' is not a member of any groups"
+        return 0
+    fi
+    
+    local removed_count=0
+    while IFS= read -r group; do
+        if [[ -n "$group" ]]; then
+            if remove_user_from_group "$username" "$group"; then
+                ((removed_count++))
+            fi
+        fi
+    done <<< "$groups"
+    
+    print_success "Removed user '$username' from $removed_count groups"
+}
+
+# Function to delete a user completely
+delete_user() {
+    local username="$1"
+    local force="$2"
+    
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        return 1
+    fi
+    
+    # Check if user exists
+    if ! user_exists "$username"; then
+        print_error "User '$username' does not exist"
+        return 1
+    fi
+    
+    local user_dn="cn=$username,$USERS_OU"
+    
+    # Confirm deletion unless force flag is used
+    if [[ "$force" != "--force" ]]; then
+        print_warning "This will permanently delete user '$username' and remove them from all groups."
+        read -p "Are you sure? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_info "User deletion cancelled"
+            return 0
+        fi
+    fi
+    
+    print_info "Deleting user '$username'..."
+    
+    # First remove user from all groups
+    remove_user_from_all_groups "$username"
+    
+    # Then delete the user entry
+    if ldapdelete -x -H "ldap://$LDAP_HOST:$LDAP_PORT" -D "$ADMIN_DN" -w "$ADMIN_PASSWORD" "$user_dn"; then
+        print_success "User '$username' deleted successfully"
+        return 0
+    else
+        print_error "Failed to delete user '$username'"
+        return 1
+    fi
+}
+
 # Function to show usage
 show_usage() {
     echo "LDAP User Management CLI"
     echo
     echo "Usage: $0 [command] [options]"
     echo
-    echo "Commands:"
+    echo "User Management Commands:"
     echo "  add-user <username> <first_name> <last_name> <email> <password>"
     echo "      Add a new user to LDAP"
     echo
-    echo "  add-to-group <username> <groupname>"
-    echo "      Add existing user to a group (administrators, developers, users)"
+    echo "  delete-user <username> [--force]"
+    echo "      Delete a user from LDAP (removes from all groups first)"
+    echo "      Use --force to skip confirmation prompt"
     echo
     echo "  list-users"
     echo "      List all users in LDAP"
@@ -199,14 +337,31 @@ show_usage() {
     echo "  show-user <username>"
     echo "      Show details for a specific user"
     echo
+    echo "Group Management Commands:"
+    echo "  add-to-group <username> <groupname>"
+    echo "      Add existing user to a group (administrators, developers, users)"
+    echo
+    echo "  remove-from-group <username> <groupname>"
+    echo "      Remove user from a specific group"
+    echo
+    echo "  show-user-groups <username>"
+    echo "      Show all groups a user belongs to"
+    echo
+    echo "  remove-from-all-groups <username>"
+    echo "      Remove user from all groups (but keep the user account)"
+    echo
+    echo "Utility Commands:"
     echo "  test-connection"
     echo "      Test connection to LDAP server"
     echo
     echo "Examples:"
     echo "  $0 add-user alice.johnson Alice Johnson alice.johnson@example.org password123"
     echo "  $0 add-to-group alice.johnson developers"
+    echo "  $0 remove-from-group bob.wilson developers"
+    echo "  $0 show-user-groups bob.wilson"
+    echo "  $0 delete-user bob.wilson"
+    echo "  $0 delete-user bob.wilson --force"
     echo "  $0 list-users"
-    echo "  $0 show-user alice.johnson"
     echo
 }
 
@@ -222,9 +377,25 @@ main() {
             if ! test_connection; then exit 1; fi
             add_user "$2" "$3" "$4" "$5" "$6"
             ;;
+        "delete-user")
+            if ! test_connection; then exit 1; fi
+            delete_user "$2" "$3"
+            ;;
         "add-to-group")
             if ! test_connection; then exit 1; fi
             add_user_to_group "$2" "$3"
+            ;;
+        "remove-from-group")
+            if ! test_connection; then exit 1; fi
+            remove_user_from_group "$2" "$3"
+            ;;
+        "show-user-groups")
+            if ! test_connection; then exit 1; fi
+            get_user_groups "$2"
+            ;;
+        "remove-from-all-groups")
+            if ! test_connection; then exit 1; fi
+            remove_user_from_all_groups "$2"
             ;;
         "list-users")
             if ! test_connection; then exit 1; fi

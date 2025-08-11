@@ -1,10 +1,21 @@
 # OpenLDAP to Terraform Cloud Sync
 
-A complete solution for synchronizing LDAP groups with Terraform Cloud teams using Docker, Terraform, and shell automation.
+## Problem Statement
 
-This project provides an OpenLDAP server with phpLDAPadmin for web-based administration, plus Terraform integration to read LDAP data and create corresponding teams in Terraform Cloud.
+Terraform Clould/Enterprise (TFC/TFE) only support SAML and does not natively support SCIM for user and team management, making it challenging to manage lifecycle of users and teams within TFC/E. Below are some of the limitations:
 
-## WOrkflow
+- **Manual user provisioning** - Admins must manually invite every user
+- **No auto-deprovisioning** - Former employees retain access until manually removed
+- **Team sync gaps** - Group memberships must be managed manually
+- **Scale limitations** - Doesn't work for hundreds/thousands of users
+
+## Solution Overview
+
+While SCIM support is on the roadmap, this project addresses this gap by providing a solution to automate the synchronization of LDAP users/groups with Terraform Cloud users/teams.
+
+The solution demonstrates syncing LDAP users/groups with Terraform Cloud users/teams using Terraform. Some example data is provided to get started quickly.
+
+## Workflow
 
 ```text
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
@@ -61,6 +72,22 @@ Run the Terraform plan and apply command again to sync the new user with Terrafo
 terraform plan && terraform apply -auto-approve
 ```
 
+Go to Terraform Cloud and verify the new user is added to the `administrators` and `developers` teams.
+
+Remove a user from 'developers' group:
+
+```bash
+./ldap-user-cli.sh remove-from-group alice.johnson developers
+```
+
+Run the Terraform plan and apply command again to sync the changes:
+
+```bash
+terraform plan && terraform apply -auto-approve
+```
+
+Go to Terraform Cloud and verify the user is removed from the `developers` team.
+
 ## Components
 
 ### LDAP Groups (Preconfigured)
@@ -95,7 +122,6 @@ docker compose down -v        # Stop and remove containers, networks, and volume
 
 - A Terraform Cloud organization
 - An API token with team management permissions
-- Access to create and manage teams
 
 ### Required Permissions
 
