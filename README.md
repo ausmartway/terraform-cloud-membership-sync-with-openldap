@@ -2,11 +2,10 @@
 
 ## Problem Statement
 
-Terraform Clould/Enterprise (TFC/TFE) only support SAML and does not natively support SCIM for user and team management, making it challenging to manage lifecycle of users and teams within TFC/E. Below are some of the limitations:
+Terraform Clould/Enterprise (TFC/TFE) only support SAML and does not natively support SCIM for user and team management, making it challenging to manage lifecycle of users and teams within TFC/E. Below are some of the limitations with SAML:
 
 - **Manual user provisioning** - Admins must manually invite every user
 - **No auto-deprovisioning** - Former employees retain access until manually removed
-- **Team sync gaps** - Group memberships must be managed manually
 - **Scale limitations** - Doesn't work for hundreds/thousands of users
 
 ## Solution Overview
